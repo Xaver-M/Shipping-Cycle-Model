@@ -13,7 +13,7 @@ implements a two-layer demand process:
       Trade grows as a function of GDP, with an elasticity that is itself
       time-varying. Calibrated on Constantinescu, Mattoo & Ruta (2020),
       who estimate the long-run trade-to-GDP elasticity at approximately
-      2.2 for 1986–2000, declining to ~1.3 post-2012.
+      2.2 for 1986-2000, declining to ~1.3 post-2012.
 
   Layer 2 — Short-run cycle:
       Around the trend, trade oscillates with the business cycle. An
@@ -30,10 +30,10 @@ implements a two-layer demand process:
 Key references
 --------------
 - Constantinescu, Mattoo & Ruta (2020): long-run elasticity estimates,
-  pp. 121–124 and 134–138.
+  pp. 121-124 and 134-138.
 - Stopford (2009): inventory cycle amplification, p. 122.
 - Luo, Fan & Liu (2009): demand enters supply equation exogenously,
-  pp. 512–514.
+  pp. 512-514.
 
 Units
 -----
