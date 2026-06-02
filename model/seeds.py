@@ -30,7 +30,8 @@ import numpy as np
 # DO NOT REGENERATE.
 
 _rng = np.random.default_rng(42)
-SEEDS: list[int] = _rng.integers(0, 100_000, size=500).tolist()
+_candidates = _rng.integers(0, 10_000_000, size=600).tolist()
+SEEDS: list[int] = list(dict.fromkeys(_candidates))[:500]  # deduplicate, keep order
 
 # --- Convenience subsets ---------------------------------------------------
 SEEDS_100  = SEEDS[:100]   # Standard sweep (fast)
