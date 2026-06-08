@@ -316,7 +316,14 @@ class SocialPlanner:
 
         A full DP implementation is left as a natural extension.
         """
-        lag = self.sp.building_lag
+        # Support both fixed building_lag (v1) and distributed lag (v2)
+        lag = getattr(self.sp, 'building_lag', None) or (
+            self.sp.lag_min + round(
+                (self.sp.lag_max - self.sp.lag_min) *
+                (self.sp.lag_alpha / (self.sp.lag_alpha + self.sp.lag_beta))
+            )
+        )
+        lag = int(lag)
         delivery_period = period + lag
         n = len(demand_forecast)
 
@@ -380,7 +387,13 @@ class SocialPlanner:
         Returns same structure as SupplyProcess.simulate() plus welfare.
         """
         n   = len(demand_path)
-        lag = self.sp.building_lag
+        lag = getattr(self.sp, 'building_lag', None) or int(
+            self.sp.lag_min + round(
+                (self.sp.lag_max - self.sp.lag_min) *
+                (self.sp.lag_alpha / (self.sp.lag_alpha + self.sp.lag_beta))
+            )
+        )
+        lag = int(lag)
 
         fleet      = np.zeros(n)
         orders     = np.zeros(n)
@@ -403,24 +416,29 @@ class SocialPlanner:
             pipeline     = np.roll(pipeline, -1)
             pipeline[-1] = 0.0
 
-            # Scrapping (rate-dependent, using previous rate)
-            scrap = supply_proc._compute_scrapping(
-                fleet[t-1] if t > 0 else self.sp.initial_fleet,
-                prev_rate / self.mp.long_run_equilibrium_rate
-            )
+            # Scrapping — supports both v1 and v2 supply API
+            current_f = fleet[t-1] if t > 0 else self.sp.initial_fleet
+            rate_signal = prev_rate / self.mp.long_run_equilibrium_rate
+            if hasattr(supply_proc, '_compute_scrapping_earnings'):
+                scrap = supply_proc._compute_scrapping_earnings(
+                    current_fleet=current_f,
+                    spot_rate=rate_signal,
+                    earnings_ewma=rate_signal,  # planner: no EWMA delay
+                )
+            else:
+                scrap = supply_proc._compute_scrapping(current_f, rate_signal)
             scrapping[t] = scrap
 
             # Fleet update
-            fleet[t] = (fleet[t-1] if t > 0 else self.sp.initial_fleet) + delivery - scrap
+            fleet[t] = current_f + delivery - scrap
             fleet[t] = max(fleet[t], 0.0)
 
             # Freight rate — planner has same market clearing as decentralised
-            # but with a structural floor: the planner would never allow rates
-            # to collapse below variable cost (vessels exit before that point).
+            # but with a structural floor: covers variable costs.
             rate = self.rate_model.clearing_rate(
                 demand_path[t], fleet[t], prev_rate
             )
-            rate = max(rate, 0.55)  # structural floor: covers variable costs
+            rate = max(rate, 0.55)
             rates[t]  = rate
             prev_rate = rate
 
@@ -515,13 +533,20 @@ class ShippingMarket:
         welfare_d  = []
 
         fleet[0] = self.sp.initial_fleet
-        lag      = self.sp.building_lag
+        lag      = getattr(self.sp, 'building_lag', None) or int(
+            self.sp.lag_min + round(
+                (self.sp.lag_max - self.sp.lag_min) *
+                (self.sp.lag_alpha / (self.sp.lag_alpha + self.sp.lag_beta))
+            )
+        )
+        lag = int(lag)
         pipeline = np.zeros(lag)
         pipeline[-1] = self.sp.initial_orderbook
 
         supply_proc  = SupplyProcess(self.sp)
         prev_rate    = self.mp.long_run_equilibrium_rate
         prev_orders  = self.sp.initial_orderbook
+        earnings_ewma = 1.0
 
         for t in range(n):
             # Deliveries
@@ -530,16 +555,23 @@ class ShippingMarket:
             pipeline      = np.roll(pipeline, -1)
             pipeline[-1]  = 0.0
 
-            # Scrapping
-            scrap         = supply_proc._compute_scrapping(
-                fleet[t-1] if t > 0 else self.sp.initial_fleet,
-                prev_rate / self.mp.long_run_equilibrium_rate
-            )
+            # Scrapping — v1/v2 compatible
+            current_f     = fleet[t-1] if t > 0 else self.sp.initial_fleet
+            rate_signal   = prev_rate / self.mp.long_run_equilibrium_rate
+            if hasattr(supply_proc, '_compute_scrapping_earnings'):
+                alpha_ew      = supply_proc.p.scrapping_earnings_memory
+                earnings_ewma = (1 - alpha_ew) * earnings_ewma + alpha_ew * rate_signal
+                scrap = supply_proc._compute_scrapping_earnings(
+                    current_fleet=current_f,
+                    spot_rate=rate_signal,
+                    earnings_ewma=earnings_ewma,
+                )
+            else:
+                scrap = supply_proc._compute_scrapping(current_f, rate_signal)
             scrapping[t] = scrap
 
             # Fleet
-            base          = fleet[t-1] if t > 0 else self.sp.initial_fleet
-            fleet[t]      = max(base + delivery - scrap, 0.0)
+            fleet[t]      = max(current_f + delivery - scrap, 0.0)
 
             # Effective fleet (slow steaming)
             eff_fleet = fleet[t]
