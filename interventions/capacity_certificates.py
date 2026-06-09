@@ -68,7 +68,10 @@ import numpy as np
 import sys
 import os
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Optional
+
+_DATA_DIR = Path(__file__).parent.parent / 'data'
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'model'))
 
@@ -688,7 +691,7 @@ if __name__ == "__main__":
         fontsize=12, fontweight='bold'
     )
 
-    os.makedirs('../data', exist_ok=True)
-    plt.savefig('../data/certificate_analysis.png', dpi=150, bbox_inches='tight')
+    _DATA_DIR.mkdir(exist_ok=True)
+    plt.savefig(_DATA_DIR / 'certificate_analysis.png', dpi=150, bbox_inches='tight')
     plt.show()
     print("\nPlot saved to data/certificate_analysis.png")
