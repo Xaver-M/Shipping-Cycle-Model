@@ -62,7 +62,7 @@ Key references
 - Greenwood & Hanson (2015): welfare loss from overextrapolation, p. 57.
 - Cramton & Stoft (2006): capacity market analogy from electricity.
 """
-
+import os
 import numpy as np
 from dataclasses import dataclass
 from typing import Optional
@@ -70,7 +70,8 @@ from scipy.optimize import minimize_scalar
 
 from demand import DemandParameters, DemandProcess
 from supply import SupplyParameters, SupplyProcess
-
+from pathlib import Path
+_DATA_DIR = Path(__file__).parent.parent / 'data'
 
 # ---------------------------------------------------------------------------
 # Parameter container
@@ -821,6 +822,7 @@ if __name__ == "__main__":
     plt.suptitle('Container Shipping Cycle Model — Market Equilibrium & Welfare Analysis',
                  fontsize=13, fontweight='bold', y=1.01)
 
-    plt.savefig('data/market_diagnostic.png', dpi=150, bbox_inches='tight')
+    _DATA_DIR.mkdir(exist_ok=True)
+    plt.savefig(_DATA_DIR / 'market_diagnostic.png', dpi=150, bbox_inches='tight')
     plt.show()
     print("\nDiagnostic plot saved to data/market_diagnostic.png")
